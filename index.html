@@ -74,6 +74,38 @@ html,body{margin:0;height:100%;background:#fff}
 .fm-r:hover{background:#e0eff7}
 .fm-none{padding:20px 4px;color:#5b6b78}
 @media(max-width:800px){.fm{grid-template-columns:1fr;grid-template-rows:minmax(320px,55%) 1fr;min-height:680px}.fm-map{order:-1}.fm-prog{border-right:0;border-top:1px solid #d7e8f1}}
+
+.fm-a{display:flex;align-items:stretch;padding:0}
+.fm-am{flex:1;min-width:0;text-align:left;border:0;background:none;padding:9px 11px;color:inherit;font:inherit;-webkit-user-select:text;user-select:text}
+.fm-add{flex:none;width:38px;margin:6px 6px 6px 0;border:1px solid #b9d9e8;border-radius:8px;background:#fff;color:var(--d);font-size:18px;line-height:1}
+.fm-add[aria-pressed=true]{background:#e8590c;border-color:#e8590c;color:#fff}
+.fm-tabs{display:flex;gap:6px;margin:0 0 10px}
+.fm-tabs button{flex:1;padding:7px 8px;border:1px solid #b9d9e8;border-radius:8px;background:#fff;color:inherit;font-size:13px}
+.fm-tabs button[aria-pressed=true]{background:var(--d);border-color:var(--d);color:#fff}
+.fm-n{margin-left:6px;padding:0 7px;border-radius:99px;background:#e8590c;color:#fff;font-size:12px}
+.fm-acts{display:none;gap:6px}
+.fm-prog[data-v=mine] .fm-acts{display:flex}
+.fm-prog[data-v=mine] .fm-flt{display:none}
+.fm-act{flex:1;padding:8px;border:1px solid var(--b);border-radius:8px;background:#fff;color:var(--d);font-size:13px;font-weight:600}
+.fm-act:hover{background:#e6f4fb}
+.fm-sum{margin:10px 2px 6px;padding:8px 10px;border-radius:8px;background:#fff6e8;font-size:13px}
+.fm-warn{background:#fdecea}
+.fm-svg .room.fm-mine,.fm-psvg .room.fm-mine{fill:#ffe08a;stroke:#e8590c;stroke-width:7}
+.fm-psvg{width:100%;height:auto;max-height:150mm;display:block;margin-top:16px;break-inside:avoid}
+.fm-psvg text{font-family:system-ui,Arial,sans-serif;font-weight:500}
+.fm-pr{display:none;font:13px/1.4 system-ui,Arial,sans-serif;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.fm-pr h1{margin:0 0 4px;font-size:24px}
+.fm-pr table{width:100%;border-collapse:collapse;margin-top:10px}
+.fm-pr th,.fm-pr td{padding:6px 8px;border-bottom:1px solid #ccd;text-align:left;vertical-align:top}
+.fm-pr tr{break-inside:avoid}
+.fm-pr tr[data-k] td:first-child{border-left:6px solid var(--c);white-space:nowrap}
+.fm-prs{color:#555;font-size:12px}
+@media print{
+ html.fm-printing body>*:not(#fm-print){display:none!important}
+ html.fm-printing #fm-print{display:block}
+ html.fm-printing,html.fm-printing body{height:auto;background:#fff}
+ @page{margin:12mm}
+}
 </style>
 </head>
 <body>
@@ -81,13 +113,17 @@ html,body{margin:0;height:100%;background:#fff}
 <aside class="fm-prog">
   <div class="fm-ph">
     <h2>Programme</h2>
-    <input id="fm-q" type="search" placeholder="Search sessions, speakers, rooms…" aria-label="Search programme" autocomplete="off">
-    <div class="fm-chips" role="group" aria-label="Filter by type">
-      <button class="fm-chip" data-f="all" aria-pressed="true">All</button>
-      <button class="fm-chip" data-f="k" aria-pressed="false">🟦 Keynote</button>
-      <button class="fm-chip" data-f="s" aria-pressed="false">🟩 Spark Talk</button>
-      <button class="fm-chip" data-f="i" aria-pressed="false">🟧 Interactive</button>
+    <div class="fm-tabs"><button data-v="all" aria-pressed="true">All sessions</button><button data-v="mine" aria-pressed="false">My schedule<span class="fm-n" id="fm-n">0</span></button></div>
+    <div class="fm-flt">
+      <input id="fm-q" type="search" placeholder="Search sessions, speakers, rooms…" aria-label="Search programme" autocomplete="off">
+      <div class="fm-chips" role="group" aria-label="Filter by type">
+        <button class="fm-chip" data-f="all" aria-pressed="true">All</button>
+        <button class="fm-chip" data-f="k" aria-pressed="false">🟦 Keynote</button>
+        <button class="fm-chip" data-f="s" aria-pressed="false">🟩 Spark Talk</button>
+        <button class="fm-chip" data-f="i" aria-pressed="false">🟧 Interactive</button>
+      </div>
     </div>
+    <div class="fm-acts"><button class="fm-act" id="fm-copy">Copy</button><button class="fm-act" id="fm-pdf">PDF</button><button class="fm-act" id="fm-clr">Clear</button></div>
   </div>
   <div class="fm-list" id="fm-list"></div>
 </aside>
@@ -109,6 +145,7 @@ const R=document.getElementById('floormap'),S=R.querySelector('.fm-svg'),OV=S.qu
 
 /* ---- EDIT ME: details shown in the info panel, keyed by room name ----
    e.g. "Lab A":{description:"Wet lab",capacity:"24",contact:"ext. 123"} */
+const EVENT_TITLE='My schedule'; // heading used in the PDF and copied text
 const ROOM_INFO={}; // optional extra text per room, e.g. "Lab A":{description:"..."}
 const TYPES={k:'Keynote',s:'Spark Talk',i:'Interactive session'};
 /* t=type (k/s/i)  n=title  w=who  l=location label  r=map rooms  s=start-end times (24h)  d=description */
@@ -201,7 +238,7 @@ sessions.sort((x,y)=>x.m-y.m||'ksi'.indexOf(x.a.t)-'ksi'.indexOf(y.a.t));
 const when=s=>s.en?fmt(s.st)+' – '+fmt(s.en):'Starts '+fmt(s.st);
 const byName=new Map(rooms.map(r=>[r.dataset.name,r]));
 const list=$('#fm-list');
-let q='',f='all';
+let q='',f='all',view='all',cur=null;
 
 function flag(on,hit){list.querySelectorAll('.fm-a').forEach(b=>{b.classList.toggle('on',b.s===on);b.classList.toggle('hit',!!hit&&hit.includes(b.s));});}
 function pop(n){P.className='fm-panel on';P.replaceChildren(...n);}
@@ -209,18 +246,20 @@ function xbtn(){const b=mk('button','fm-x','×');b.setAttribute('aria-label','Cl
 
 function showAct(s){
   const a=s.a,els=(a.r||[]).map(n=>byName.get(n)).filter(Boolean);
-  mark(els);flag(s);
+  mark(els);flag(cur=s);
   const b=mk('span','fm-badge',TYPES[a.t]);b.dataset.k=a.t;
   const n=[xbtn(),b,mk('h3','',a.n),mk('p','fm-meta',when(s)+(a.l?' · '+a.l:''))];
   if(a.w)n.push(mk('p','fm-who',a.w));
   if(a.d)n.push(mk('p','',a.d));
   const more=a.s.filter(t=>t!==s.raw).map(t=>fmt(t.split('-')[0]));
   if(more.length)n.push(mk('p','fm-meta','Also at: '+more.join(', ')));
+  const t=mk('button','fm-go');const upd=()=>{t.textContent=sel.has(s.k)?'✓ In my schedule – remove':'+ Add to my schedule';};
+  upd();t.onclick=()=>{toggle(s);upd();};n.push(t);
   pop(n);
   if(els.length)zoomTo(els);
 }
 function select(el){
-  mark([]);P.className='fm-panel';P.replaceChildren();flag(null);
+  mark([]);P.className='fm-panel';P.replaceChildren();flag(null);cur=null;
   if(!el)return;
   mark([el]);
   const name=el.dataset.name,info=ROOM_INFO[name]||{},here=sessions.filter(s=>(s.a.r||[]).includes(name));
@@ -233,25 +272,93 @@ function select(el){
   const first=list.querySelector('.fm-a.hit');if(first)first.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 
+/* ---- my schedule (saved in this browser) ---- */
+const KEY='fm-schedule-v1',sel=new Set();
+try{JSON.parse(localStorage.getItem(KEY)||'[]').forEach(k=>sel.add(k));}catch(e){}
+sessions.forEach(s=>{s.k=s.a.n+'|'+s.raw+'|'+(s.a.l||'');});
+const mine=()=>sessions.filter(s=>sel.has(s.k));
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify([...sel]));}catch(e){}};
+const nEl=$('#fm-n'),pb=$('#fm-pdf'),cb=$('#fm-copy'),cl=$('#fm-clr');
+function toggle(s){if(sel.has(s.k))sel.delete(s.k);else sel.add(s.k);save();refresh();}
+function refresh(){const y=list.scrollTop;render();list.scrollTop=y;}
+function flash(b,t){if(!b.dataset.o)b.dataset.o=b.textContent;b.textContent=t;clearTimeout(b.h);b.h=setTimeout(()=>{b.textContent=b.dataset.o;},1600);}
+
 /* ---- programme list + filters ---- */
 function render(){
   list.replaceChildren();
-  const vis=sessions.filter(s=>(f==='all'||s.a.t===f)&&(!q||[s.a.n,s.a.w,s.a.l,s.a.d].join(' ').toLowerCase().includes(q)));
+  const m=mine(),isMine=view==='mine';
+  const vis=isMine?m:sessions.filter(s=>(f==='all'||s.a.t===f)&&(!q||[s.a.n,s.a.w,s.a.l,s.a.d].join(' ').toLowerCase().includes(q)));
+  if(isMine&&m.length){
+    list.append(mk('div','fm-sum','Rooms: '+[...new Set(m.flatMap(s=>s.a.r||[]))].join(' · ')));
+    if(m.some((s,i)=>m.some((t,j)=>i!==j&&t.st===s.st)))list.append(mk('div','fm-sum fm-warn','⚠ Some selected sessions start at the same time.'));
+  }
   let last='';
   vis.forEach(s=>{
     if(s.st!==last){last=s.st;list.append(mk('div','fm-t',fmt(s.st)));}
-    const b=mk('button','fm-a');b.dataset.k=s.a.t;b.s=s;
-    b.append(mk('b','',s.a.n),mk('small','',when(s)+(s.a.l?' · '+s.a.l:'')));
-    b.onclick=()=>showAct(s);list.append(b);
+    const on=sel.has(s.k),b=mk('div','fm-a');b.dataset.k=s.a.t;b.s=s;
+    const am=mk('button','fm-am');am.append(mk('b','',s.a.n),mk('small','',when(s)+(s.a.l?' · '+s.a.l:'')));am.onclick=()=>showAct(s);
+    const ad=mk('button','fm-add',on?'✓':'+');ad.setAttribute('aria-pressed',on);
+    ad.setAttribute('aria-label',(on?'Remove from':'Add to')+' my schedule: '+s.a.n);ad.onclick=()=>toggle(s);
+    b.append(am,ad);list.append(b);
   });
-  if(!vis.length)list.append(mk('div','fm-none','No sessions match.'));
-  const used=new Set(vis.flatMap(s=>s.a.r||[])),filtering=f!=='all'||q;
-  rooms.forEach(r=>{const dim=filtering&&!used.has(r.dataset.name);r.classList.toggle('dim',dim);lbl.get(r).forEach(t=>t.classList.toggle('dim',dim));});
+  if(!vis.length)list.append(mk('div','fm-none',isMine?'No sessions yet. Tap + next to any session to add it.':'No sessions match.'));
+  nEl.textContent=m.length;
+  const used=new Set(vis.flatMap(s=>s.a.r||[])),mr=new Set(m.flatMap(s=>s.a.r||[])),filtering=isMine?vis.length>0:(f!=='all'||q);
+  rooms.forEach(r=>{const dim=filtering&&!used.has(r.dataset.name);r.classList.toggle('dim',dim);lbl.get(r).forEach(t=>t.classList.toggle('dim',dim));r.classList.toggle('fm-mine',mr.has(r.dataset.name));});
+  if(cur)flag(cur);
 }
+$('.fm-prog').dataset.v='all';
+R.querySelectorAll('.fm-tabs button').forEach(b=>b.onclick=()=>{view=b.dataset.v;R.querySelectorAll('.fm-tabs button').forEach(x=>x.setAttribute('aria-pressed',x===b));$('.fm-prog').dataset.v=view;select(null);render();list.scrollTop=0;});
 R.querySelectorAll('.fm-chip').forEach(c=>c.onclick=()=>{f=c.dataset.f;R.querySelectorAll('.fm-chip').forEach(x=>x.setAttribute('aria-pressed',x===c));render();});
 const qi=$('#fm-q');
 qi.addEventListener('input',()=>{q=qi.value.trim().toLowerCase();render();});
 qi.addEventListener('keydown',e=>{if(e.key==='Escape'){qi.value='';q='';render();}});
+
+/* ---- copy / PDF / clear ---- */
+function scheduleText(){
+  const m=mine();if(!m.length)return'';
+  const L=[EVENT_TITLE,''];
+  m.forEach(s=>{L.push(when(s)+' | '+TYPES[s.a.t],s.a.n,'Location: '+(s.a.l||'TBC'));if(s.a.w)L.push(s.a.w);L.push('');});
+  L.push('Rooms: '+[...new Set(m.flatMap(s=>s.a.r||[]))].join(', '));
+  return L.join('\n');
+}
+cb.onclick=async()=>{
+  const t=scheduleText();if(!t)return flash(cb,'Nothing yet');
+  try{await navigator.clipboard.writeText(t);}
+  catch(e){const a=document.createElement('textarea');a.value=t;document.body.append(a);a.select();try{document.execCommand('copy');}catch(_){}a.remove();}
+  flash(cb,'Copied ✓');
+};
+cl.onclick=()=>{
+  if(!sel.size)return flash(cl,'Nothing yet');
+  if(cl.dataset.arm){clearTimeout(cl.t);delete cl.dataset.arm;cl.textContent='Clear';sel.clear();save();select(null);refresh();return;}
+  cl.dataset.arm=1;cl.textContent='Sure? Tap again';cl.t=setTimeout(()=>{delete cl.dataset.arm;cl.textContent='Clear';},3000);
+};
+pb.onclick=()=>{
+  const m=mine();if(!m.length)return flash(pb,'Add sessions first');
+  const old=document.getElementById('fm-print');if(old)old.remove();
+  const d=mk('div','fm-pr');d.id='fm-print';
+  d.append(mk('h1','',EVENT_TITLE));
+  d.append(mk('p','','Rooms: '+[...new Set(m.flatMap(s=>s.a.r||[]))].join(' · ')));
+  const tb=mk('table'),h=mk('tr');['Time','Session','Room'].forEach(t=>h.append(mk('th','',t)));tb.append(h);
+  m.forEach(s=>{
+    const tr=mk('tr'),c2=mk('td');tr.dataset.k=s.a.t;
+    c2.append(mk('b','',s.a.n),mk('div','fm-prs',[TYPES[s.a.t],s.a.w].filter(Boolean).join(' · ')));
+    tr.append(mk('td','',when(s)),c2,mk('td','',s.a.l||'—'));tb.append(tr);
+  });
+  d.append(tb);
+  const c=S.cloneNode(true);
+  c.querySelector('#fm-ov').replaceChildren();
+  c.querySelectorAll('.poi').forEach(e=>e.remove());
+  c.querySelectorAll('.dim').forEach(e=>e.classList.remove('dim'));
+  c.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));
+  c.querySelectorAll('[tabindex]').forEach(e=>e.removeAttribute('tabindex'));
+  c.setAttribute('viewBox',base.x+' '+base.y+' '+base.w+' '+base.h);c.setAttribute('class','fm-psvg');
+  d.append(c);document.body.append(d);
+  const H=document.documentElement,done=()=>{H.classList.remove('fm-printing');d.remove();};
+  H.classList.add('fm-printing');
+  addEventListener('afterprint',done,{once:true});
+  try{window.print();}catch(e){done();flash(pb,'Print blocked');}
+};
 
 /* ---- zoom buttons ---- */
 R.querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{
