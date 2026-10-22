@@ -73,7 +73,7 @@ html,body{margin:0;height:100%;background:#fff}
 .fm-r{display:block;width:100%;text-align:left;margin:4px 0;padding:7px 10px;border:0;border-radius:8px;background:#f1f7fa;color:inherit}
 .fm-r:hover{background:#e0eff7}
 .fm-none{padding:20px 4px;color:#5b6b78}
-@media(max-width:800px){.fm{grid-template-columns:1fr;grid-template-rows:minmax(320px,55%) 1fr;min-height:680px}.fm-map{order:-1}.fm-prog{border-right:0;border-top:1px solid #d7e8f1}}
+
 
 .fm-a{display:flex;align-items:stretch;padding:0}
 .fm-am{flex:1;min-width:0;text-align:left;border:0;background:none;padding:9px 11px;color:inherit;font:inherit;-webkit-user-select:text;user-select:text}
@@ -105,6 +105,23 @@ html,body{margin:0;height:100%;background:#fff}
  html.fm-printing #fm-print{display:block}
  html.fm-printing,html.fm-printing body{height:auto;background:#fff}
  @page{margin:12mm}
+}
+
+/* ---- phones: sticky map on top, programme scrolls underneath, details as bottom sheet ---- */
+@media(max-width:800px){
+ .fm{--mh:clamp(230px,42vh,440px);display:block;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+ .fm-map{position:sticky;top:0;z-index:3;height:var(--mh);border-bottom:1px solid #d7e8f1;background:#fff}
+ .fm-prog{display:block;border:0}
+ .fm-ph{display:contents}
+ .fm-ph h2{display:none}
+ .fm-tabs{position:sticky;top:var(--mh);z-index:2;margin:0;padding:8px 10px;background:#f6fafc;border-bottom:1px solid #d7e8f1}
+ .fm-flt,.fm-acts{padding:10px 10px 0}
+ .fm-list{overflow:visible;padding-bottom:24px}
+ .fm-t{position:static}
+ .fm-a{scroll-margin-top:calc(var(--mh) + 60px)}
+ .fm-panel{position:fixed;left:0;right:0;bottom:0;width:auto;max-width:none;max-height:50%;padding:16px 18px 20px;border-radius:18px 18px 0 0;z-index:20}
+ .fm-panel h3{font-size:20px}
+ .fm-zoom button{width:34px;height:34px;font-size:18px}
 }
 </style>
 </head>
@@ -308,7 +325,7 @@ function render(){
   if(cur)flag(cur);
 }
 $('.fm-prog').dataset.v='all';
-R.querySelectorAll('.fm-tabs button').forEach(b=>b.onclick=()=>{view=b.dataset.v;R.querySelectorAll('.fm-tabs button').forEach(x=>x.setAttribute('aria-pressed',x===b));$('.fm-prog').dataset.v=view;select(null);render();list.scrollTop=0;});
+R.querySelectorAll('.fm-tabs button').forEach(b=>b.onclick=()=>{view=b.dataset.v;R.querySelectorAll('.fm-tabs button').forEach(x=>x.setAttribute('aria-pressed',x===b));$('.fm-prog').dataset.v=view;select(null);render();list.scrollTop=0;R.scrollTop=0;});
 R.querySelectorAll('.fm-chip').forEach(c=>c.onclick=()=>{f=c.dataset.f;R.querySelectorAll('.fm-chip').forEach(x=>x.setAttribute('aria-pressed',x===c));render();});
 const qi=$('#fm-q');
 qi.addEventListener('input',()=>{q=qi.value.trim().toLowerCase();render();});
