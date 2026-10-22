@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Interactive Floor Map</title>
+<style>
+html,body{margin:0;height:100%;background:#fff}
+.fm{--b:#009edb;--d:#0b3d5c;position:relative;width:100%;height:var(--fm-h,100%);min-height:480px;background:#fff;font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#131d29;overflow:hidden;-webkit-user-select:none;user-select:none}
+.fm *{box-sizing:border-box}
+.fm-svg{position:absolute;inset:0;width:100%;height:100%;touch-action:pan-y;cursor:grab}
+.fm.zoomed .fm-svg{touch-action:none}
+.fm-svg:active{cursor:grabbing}
+.fm-svg text{font-family:inherit;font-weight:500;pointer-events:none}
+.fm-svg .room{pointer-events:all;cursor:pointer;outline:none;transition:opacity .2s}
+.fm-svg .dim{opacity:.25;transition:opacity .2s}
+.fm-svg .poi{fill:transparent;pointer-events:all;cursor:pointer;outline:none}
+.fm.am .poi{fill:rgba(0,158,219,.15);stroke:var(--b);stroke-width:3;stroke-dasharray:8 6}
+.fm-hv,.fm-sel{pointer-events:none;stroke-linejoin:round}
+.fm-hv{fill:rgba(0,158,219,.18);stroke:var(--b);stroke-width:5}
+.fm-sel{fill:rgba(0,158,219,.28);stroke:var(--d);stroke-width:8}
+.fm-pulse{fill:#39b54a;opacity:.5;transform-box:fill-box;transform-origin:center;animation:fmp 1.8s ease-out infinite;pointer-events:none}
+@keyframes fmp{to{transform:scale(3.2);opacity:0}}
+.fm-bar{position:absolute;top:10px;left:10px;right:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;pointer-events:none}
+.fm-bar>*{pointer-events:auto}
+.fm-sw{position:relative;width:220px;max-width:100%}
+.fm input{width:100%;padding:9px 12px;border:1px solid #b9d9e8;border-radius:10px;font:inherit;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.12);-webkit-user-select:text;user-select:text}
+.fm-res{position:absolute;top:100%;left:0;right:0;margin:4px 0 0;padding:4px;list-style:none;background:#fff;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.2);z-index:5}
+.fm-res li{padding:7px 10px;border-radius:6px;cursor:pointer}
+.fm-res li:hover{background:#e6f4fb}
+.fm-chips{display:flex;flex-wrap:wrap;gap:6px}
+.fm button{font:inherit;cursor:pointer}
+.fm-chip{padding:7px 12px;border:1px solid #b9d9e8;border-radius:99px;background:#fff;color:inherit;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.fm-chip[aria-pressed=true]{background:var(--b);border-color:var(--b);color:#fff}
+.fm-zoom{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px}
+.fm-zoom button{width:38px;height:38px;border:1px solid #b9d9e8;border-radius:10px;background:#fff;color:inherit;font-size:20px;line-height:1;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.fm-tip{position:absolute;pointer-events:none;background:#131d29;color:#fff;padding:4px 9px;border-radius:6px;font-size:13px;opacity:0;transition:opacity .1s;white-space:nowrap;z-index:6}
+.fm-tip.on{opacity:1}
+.fm-panel{position:absolute;left:10px;bottom:10px;width:min(320px,calc(100% - 70px));background:#fff;border-radius:14px;border-top:5px solid var(--b);padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.22);display:none}
+.fm-panel.on{display:block}
+.fm-panel h3{margin:0 28px 6px 0;font-size:18px}
+.fm-badge{display:inline-block;font-size:12px;padding:2px 9px;border-radius:99px;background:#e6f4fb;color:var(--d)}
+.fm-panel p{margin:8px 0 0}
+.fm-panel dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin:8px 0 0}
+.fm-panel dt{color:#5b6b78;text-transform:capitalize}
+.fm-panel dd{margin:0}
+.fm-x{position:absolute;top:8px;right:10px;border:0;background:none;font-size:22px;line-height:1;color:#5b6b78}
+.fm-go{margin-top:10px;padding:7px 12px;border:0;border-radius:8px;background:var(--b);color:#fff}
+.fm-hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(19,29,41,.85);color:#fff;padding:8px 14px;border-radius:8px;opacity:0;transition:opacity .25s;pointer-events:none}
+.fm-hint.on{opacity:1}
+</style>
+</head>
+<body>
+<div class="fm" id="floormap">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2834.65 2834.65" class="fm-svg" role="group" aria-label="Interactive floor map"><defs><style>.fmc-1,.fmc-2,.fmc-3,.fmc-4,.fmc-5{font-family:Fieldwork-Geo-Demibold, Fieldwork;font-weight:300;}.fmc-1,.fmc-3{font-size:34.19px;}.fmc-1,.fmc-6{fill:#39b54a;}.fmc-7,.fmc-8,.fmc-9,.fmc-10,.fmc-11,.fmc-12,.fmc-13,.fmc-14{stroke:#009edb;stroke-miterlimit:10;}.fmc-7,.fmc-8,.fmc-9,.fmc-10,.fmc-11,.fmc-12,.fmc-14{stroke-width:3px;}.fmc-7,.fmc-15,.fmc-13{fill:#fff;}.fmc-8{fill:#93d3d0;}.fmc-16{fill:#ed1c24;}.fmc-9{fill:#d0c3de;}.fmc-17{fill:#131d29;}.fmc-10{fill:#fbfae9;}.fmc-18,.fmc-12{fill:none;}.fmc-2{font-size:40.71px;}.fmc-2,.fmc-4,.fmc-5{fill:#231f20;}.fmc-3{glyph-orientation-vertical:0deg;text-orientation:upright;writing-mode:tb;}.fmc-3,.fmc-19{fill:#009edb;}.fmc-4{font-size:36.36px;}.fmc-20{fill:#817191;}.fmc-11{fill:#a4d2ed;}.fmc-13{stroke-width:5px;}.fmc-14{fill:#fdc990;}.fmc-5{font-size:36.26px;}</style></defs><rect class="fmc-15" x="1829.54" y="2266.28" width="53.57" height="57.75" /><path class="fmc-15" d="M421.8,458.36h1991.05c33.79,0,61.22,27.43,61.22,61.22v1896.7c0,33.79-27.43,61.22-61.22,61.22H421.8c-33.79,0-61.22-27.43-61.22-61.22V519.59c0-33.79,27.43-61.22,61.22-61.22Z" /><path class="fmc-17" d="M2412.85,464.36c30.45,0,55.22,24.77,55.22,55.22v1896.7c0,30.45-24.77,55.22-55.22,55.22H421.8c-30.45,0-55.22-24.77-55.22-55.22V519.59c0-30.45,24.77-55.22,55.22-55.22h1991.05M2412.85,452.36H421.8c-37.13,0-67.22,30.1-67.22,67.22v1896.7c0,37.13,30.1,67.22,67.22,67.22h1991.05c37.13,0,67.22-30.1,67.22-67.22V519.59c0-37.13-30.1-67.22-67.22-67.22h0Z" /><path class="fmc-13" d="M2318.08,972.59v-328.97c0-15.4-12.48-27.88-27.88-27.88H544.37c-15.4,0-27.88,12.48-27.88,27.88v1650.05c0,15.4,12.48,27.88,27.88,27.88h1745.82c15.4,0,27.88-12.48,27.88-27.88v-1261.13" /><path class="fmc-10" d="M2042.12,2320.13H540.2c-13.07,0-23.67-11.12-23.67-24.83v-506.21h129.86v152.08c0,16.5,13.38,29.88,29.88,29.88h616.83v143.18h16.65v165.27h588.81v-13.7c0-7.45,5.75-13.48,12.85-13.48h120.02v-15.34h-69.84c-8.28,0-14.99-7.04-14.99-15.73v-124.86.46h-38.49v-109.65c0-11.11,8.59-20.12,19.18-20.12h41.55c10.59,0,19.18,9.01,19.18,20.12v45.54h113.78v-40.02c0-14.41,11.14-26.1,24.88-26.1h191.46v325.02c0,15.74-12.16,28.5-27.16,28.5h-249.15" /><path class="fmc-9 room" d="M1606.28,1963.75h166.53c21.75,0,39.41,17.66,39.41,39.41v276.34h-245.34v-276.34c0-21.75,17.66-39.41,39.41-39.41Z" id="r-6" data-name="Lightbulb Room" data-type="special" tabindex="0" role="button" aria-label="Lightbulb Room" /><rect class="fmc-14 room" x="1242.73" y="2075.95" width="261.03" height="203.54" id="r-7" data-name="Lab A" data-type="lab" tabindex="0" role="button" aria-label="Lab A" /><path class="fmc-11 room" d="M1376.13,1963.46h94.78c18.13,0,32.85,14.72,32.85,32.85v117.91h-127.64v-150.77h0Z" id="r-8" data-name="Room 2" data-type="room" tabindex="0" role="button" aria-label="Room 2" /><path class="fmc-11 room" d="M1253.65,1963.46h122.48v150.77h-133.4v-139.85c0-6.02,4.89-10.92,10.92-10.92Z" id="r-9" data-name="Room 3" data-type="room" tabindex="0" role="button" aria-label="Room 3" /><rect class="fmc-12 room" x="1242.73" y="1229.59" width="569.48" height="467.41" rx="43.44" ry="43.44" id="r-10" data-name="Atrium" data-type="common" tabindex="0" role="button" aria-label="Atrium" /><rect class="fmc-11 room" x="516.53" y="1636.15" width="129.86" height="167.45" id="r-11" data-name="Room 6" data-type="room" tabindex="0" role="button" aria-label="Room 6" /><path class="fmc-11 room" d="M676.27,1971.04h-159.74v-167.45h129.86v137.57c0,2.22.29,12.17,8.14,20.49,8.62,9.14,19.81,9.38,21.74,9.39Z" id="r-12" data-name="Room 4" data-type="room" tabindex="0" role="button" aria-label="Room 4" /><rect class="fmc-11 room" x="516.53" y="1464.91" width="129.86" height="171.24" id="r-13" data-name="Room 8" data-type="room" tabindex="0" role="button" aria-label="Room 8" /><rect class="fmc-11 room" x="516.53" y="1293.68" width="129.86" height="171.24" id="r-14" data-name="Room 10" data-type="room" tabindex="0" role="button" aria-label="Room 10" /><rect class="fmc-10" x="516.53" y="1124.28" width="129.86" height="169.4" /><path class="fmc-11 room" d="M516.53,866.87h114.69c8.37,0,15.16,6.79,15.16,15.16v242.24h-129.86v-257.41h0Z" id="r-16" data-name="Room 12" data-type="room" tabindex="0" role="button" aria-label="Room 12" /><path class="fmc-10" d="M636.06,866.87h-119.53v-226.12c0-14.6,11.83-26.43,26.43-26.43h141.26v35.88c0,9.31-7.55,16.86-16.86,16.86h-30.7s-.6,199.81-.6,199.81Z" /><path class="fmc-11 room" d="M820.06,719.77h124.41v197.44h-157.01v-164.84c0-18,14.61-32.61,32.61-32.61Z" id="r-18" data-name="Room 13" data-type="room" tabindex="0" role="button" aria-label="Room 13" /><path class="fmc-11 room" d="M944.47,719.77h124.41c18,0,32.61,14.61,32.61,32.61v164.84h-157.01v-197.44h0Z" id="r-19" data-name="Room 14" data-type="room" tabindex="0" role="button" aria-label="Room 14" /><rect class="fmc-11 room" x="787.45" y="917.21" width="157.01" height="197.44" id="r-20" data-name="Room 11" data-type="room" tabindex="0" role="button" aria-label="Room 11" /><rect class="fmc-11 room" x="944.47" y="917.21" width="157.01" height="197.44" id="r-21" data-name="Room 15" data-type="room" tabindex="0" role="button" aria-label="Room 15" /><rect class="fmc-11 room" x="787.45" y="1114.65" width="157.01" height="197.44" id="r-22" data-name="Room 9" data-type="room" tabindex="0" role="button" aria-label="Room 9" /><rect class="fmc-11 room" x="944.47" y="1114.65" width="157.01" height="197.44" id="r-23" data-name="Room 16" data-type="room" tabindex="0" role="button" aria-label="Room 16" /><rect class="fmc-11 room" x="787.45" y="1312.1" width="157.01" height="197.44" id="r-24" data-name="Room 7" data-type="room" tabindex="0" role="button" aria-label="Room 7" /><rect class="fmc-11 room" x="944.47" y="1312.1" width="157.01" height="197.44" id="r-25" data-name="Room 17" data-type="room" tabindex="0" role="button" aria-label="Room 17" /><path class="fmc-11 room" d="M884.12,1682.33h-69.8c-14.83,0-26.86-12.03-26.86-26.86v-145.92h132.48v97.41h-35.82v75.37Z" id="r-26" data-name="Room 5" data-type="room" tabindex="0" role="button" aria-label="Room 5" /><polygon class="fmc-10" points="1008.18 1509.54 919.93 1509.54 919.93 1606.95 884.12 1606.95 884.12 1682.33 1008.18 1682.33 1008.18 1509.54" /><rect class="fmc-11 room" x="1341.71" y="794.21" width="144.82" height="176.61" id="r-28" data-name="Room 19" data-type="room" tabindex="0" role="button" aria-label="Room 19" /><rect class="fmc-11 room" x="1341.71" y="614.32" width="144.82" height="179.89" id="r-29" data-name="Room 18" data-type="room" tabindex="0" role="button" aria-label="Room 18" /><polygon class="fmc-11 room" points="2208.1 1251.98 2094.47 1251.98 2094.47 1034 2261.9 1034 2261.9 1114.23 2208.1 1114.23 2208.1 1251.98" id="r-30" data-name="Room 21" data-type="room" tabindex="0" role="button" aria-label="Room 21" /><path class="fmc-14 room" d="M1975.82,1034h118.64v286.04h-141.47v-263.22c0-12.6,10.23-22.82,22.82-22.82Z" id="r-31" data-name="Lab C" data-type="lab" tabindex="0" role="button" aria-label="Lab C" /><rect class="fmc-11 room" x="1953" y="1320.04" width="141.47" height="173.72" id="r-32" data-name="Room 23" data-type="room" tabindex="0" role="button" aria-label="Room 23" /><rect class="fmc-11 room" x="1953" y="1493.76" width="141.47" height="175.82" id="r-33" data-name="Room 24" data-type="room" tabindex="0" role="button" aria-label="Room 24" /><path class="fmc-8 room" d="M2094.47,1669.58h-141.47v61.01c0,14.66,11.89,26.55,26.55,26.55h255.99" id="r-34" data-name="Office" data-type="office" tabindex="0" role="button" aria-label="Office" /><polyline class="fmc-10" points="2094.47 1552.36 2094.47 1251.98 2208.1 1251.98 2208.1 1114.23 2261.9 1114.23 2261.9 1034 2318.12 1034 2318.12 1599.36 2236.82 1599.36" /><text class="fmc-2" transform="translate(1337.4793 2191.9121)" data-for="r-7"><tspan x="0" y="0">Lab</tspan><tspan x="22.09" y="48.86">A</tspan></text><text class="fmc-2" transform="translate(1403.3807 2038.8399)" data-for="r-8"><tspan x="0" y="0">Rm.</tspan><tspan x="25.71" y="48.86">2</tspan></text><text class="fmc-2" transform="translate(1276.2616 2038.8399)" data-for="r-9"><tspan x="0" y="0">Rm.</tspan><tspan x="25.12" y="48.86">3</tspan></text><text class="fmc-2" transform="translate(565.0711 1732.7368)" data-for="r-11"><tspan x="0" y="0">6</tspan></text><text class="fmc-2" transform="translate(565.0711 1901.4932)" data-for="r-12"><tspan x="0" y="0">4</tspan></text><text class="fmc-2" transform="translate(564.8827 1569.4048)" data-for="r-13"><tspan x="0" y="0">8</tspan></text><text class="fmc-2" transform="translate(556.7713 1402.8452)" data-for="r-14"><tspan x="0" y="0">10</tspan></text><text class="fmc-2" transform="translate(559.0877 1020.044)" data-for="r-16"><tspan x="0" y="0">12</tspan></text><text class="fmc-2" transform="translate(842.54 826.79)" data-for="r-18"><tspan x="0" y="0">13</tspan></text><text class="fmc-2" transform="translate(1002.7811 826.7881)" data-for="r-19"><tspan x="0" y="0">14</tspan></text><text class="fmc-2" transform="translate(846.6581 1030.5469)" data-for="r-20"><tspan x="0" y="0">11</tspan></text><text class="fmc-2" transform="translate(1003.4959 1030.5469)" data-for="r-21"><tspan x="0" y="0">15</tspan></text><text class="fmc-2" transform="translate(849.1131 1225.5616)" data-for="r-22"><tspan x="0" y="0">9</tspan></text><text class="fmc-2" transform="translate(1002.4618 1225.5616)" data-for="r-23"><tspan x="0" y="0">16</tspan></text><text class="fmc-2" transform="translate(851.3905 1423.92)" data-for="r-24"><tspan x="0" y="0">7</tspan></text><text class="fmc-2" transform="translate(1004.7381 1423.92)" data-for="r-25"><tspan x="0" y="0">17</tspan></text><text class="fmc-2" transform="translate(850.1473 1575.2344)" data-for="r-26"><tspan x="0" y="0">5</tspan></text><text class="fmc-2" transform="translate(1390.5145 713.3994)" data-for="r-29"><tspan x="0" y="0">18</tspan></text><text class="fmc-2" transform="translate(1390.704 901.1436)" data-for="r-28"><tspan x="0" y="0">19</tspan></text><text class="fmc-2" transform="translate(1986.8504 1170.9502)" data-for="r-31"><tspan x="0" y="0">Lab</tspan><tspan x="22.29" y="48.86">C</tspan></text><text class="fmc-2" transform="translate(2155.3084 1085.9649)" data-for="r-30"><tspan x="0" y="0">21</tspan></text><text class="fmc-2" transform="translate(2000.3094 1429.2852)" data-for="r-32"><tspan x="0" y="0">23</tspan></text><text class="fmc-2" transform="translate(1999.8622 1600.6094)" data-for="r-33"><tspan x="0" y="0">24</tspan></text><text class="fmc-5" transform="translate(1974.911 1724.9707)" data-for="r-34"><tspan x="0" y="0">Office</tspan></text><text class="fmc-2" transform="translate(1463.8993 1482.8789)" data-for="r-10"><tspan x="0" y="0">Atrium</tspan></text><path class="fmc-10" d="M1646.79,907.66h334.09c3.74,6.47,10.64,10.46,18.12,10.46h236.58c10.06,0,18.22,8.16,18.22,18.22v14.92c0,10.96,8.89,19.85,19.85,19.85h44.47v-331.49c0-13.97-11.32-25.29-25.29-25.29h-646.28" /><path class="fmc-10" d="M1646.55,614.32h-160.02v120.41h132.25c15.34,0,27.77,12.43,27.77,27.77v147.54" /><polyline class="fmc-10" points="2094.47 1552.18 2094.47 1756.96 2236.82 1756.96 2236.82 1599.36" /><path class="fmc-14 room" d="M2202.74,1599.36h115.38v213.24h-97.56c-9.83,0-17.81-7.98-17.81-17.81v-195.42h0Z" id="r-64" data-name="Lab B" data-type="lab" tabindex="0" role="button" aria-label="Lab B" /><text class="fmc-2" transform="translate(2227.1092 1693.8233)" data-for="r-64"><tspan x="0" y="0">Lab</tspan><tspan x="22.41" y="48.86">B</tspan></text><path class="fmc-20" d="M1734.15,2121.79h-10.64c-1.27,0-2.3,1.03-2.3,2.3s1.03,2.3,2.3,2.3h10.64c1.27,0,2.3-1.03,2.3-2.3s-1.03-2.3-2.3-2.3h0Z" /><path class="fmc-20" d="M1719.83,2109.85c.42,0,.83-.1,1.19-.3l9.21-5.32c1.11-.65,1.48-2.07.83-3.17-.65-1.11-2.07-1.48-3.17-.83l-9.21,5.35c-1.1.63-1.48,2.03-.85,3.14.41.72,1.18,1.16,2,1.15h0Z" /><path class="fmc-20" d="M1715.88,2083.43c-1.04-.69-2.43-.42-3.15.6l-6,8.79c-.78,1-.59,2.45.41,3.22,1,.78,2.45.59,3.22-.41.06-.08.11-.16.16-.24l5.96-8.81c.68-1.04.41-2.44-.61-3.15Z" /><path class="fmc-20" d="M1670.47,2096.39c1.27,0,2.3-1.02,2.3-2.29,0-.47-.14-.92-.4-1.31l-6-8.79c-.67-1.08-2.09-1.4-3.17-.73-1.08.67-1.4,2.09-.73,3.17.03.05.06.1.1.15l5.99,8.81c.43.63,1.15,1,1.91,1Z" /><path class="fmc-20" d="M1660.32,2105.57l-9.22-5.35c-1.12-.6-2.51-.17-3.11.95-.57,1.06-.21,2.39.81,3.03l9.21,5.32c1.08.67,2.49.35,3.17-.73.67-1.08.35-2.49-.73-3.17-.05-.03-.09-.06-.14-.08v.03Z" /><path class="fmc-20" d="M1730.19,2143.5l-9.17-5.32c-1.1-.65-2.52-.27-3.17.83-.65,1.1-.27,2.52.83,3.17l9.21,5.32c1.12.6,2.51.17,3.11-.95.57-1.06.21-2.39-.81-3.03v-.02Z" /><path class="fmc-20" d="M1658.02,2138.18l-9.21,5.32c-1.12.6-1.55,1.99-.95,3.11s1.99,1.55,3.11.95c.05-.03.1-.05.14-.08l9.21-5.3c1.08-.67,1.4-2.09.73-3.17-.64-1.02-1.96-1.38-3.03-.81v-.02Z" /><path class="fmc-20" d="M1657.87,2124.08c0-1.27-1.03-2.3-2.3-2.3h-10.64c-1.27,0-2.3,1.03-2.3,2.3s1.03,2.3,2.3,2.3h10.64c1.27,0,2.3-1.03,2.3-2.3h0Z" /><path class="fmc-20" d="M1689.46,2090.27c1.27,0,2.3-1.03,2.3-2.3v-10.64c0-1.27-1.03-2.3-2.3-2.3s-2.3,1.03-2.3,2.3v10.64c0,1.27,1.03,2.3,2.3,2.3h0Z" /><path class="fmc-20" d="M1698.6,2151.88h-18.28c-1.27,0-2.3,1.03-2.29,2.3,0,1.27,1.03,2.29,2.29,2.29h18.28c1.27,0,2.3-1.03,2.3-2.29,0-1.27-1.03-2.3-2.29-2.3h0Z" /><path class="fmc-20" d="M1684.72,2165.59v1.26c0,1.44,1.16,2.61,2.6,2.61h3.71c1.43,0,2.6-1.17,2.6-2.6v-1.22c2.99-.17,5.33-2.63,5.35-5.62h-19.1c.02,2.8,2.07,5.16,4.84,5.57Z" /><path class="fmc-20" d="M1689.46,2099.78c-12.76,0-23.08,10.62-23.08,23.7,0,3.05.57,6.06,1.69,8.9.14.35.29.7.44,1.05,1,2.23,2.34,4.29,3.97,6.11l5.86,9.01h22.26l5.86-9.01c1.63-1.82,2.96-3.88,3.97-6.11.15-.34.3-.69.44-1.05,1.12-2.83,1.69-5.85,1.69-8.9,0-13.09-10.34-23.7-23.1-23.7ZM1688.41,2108.5c-2.43.14-4.79.86-6.88,2.1-4.4,2.61-6.68,7.34-6.8,13.92-.02,1.25-1.04,2.26-2.3,2.26h0c-1.27-.02-2.28-1.07-2.26-2.34,0,0,0,0,0,0,.18-10.49,5.13-15.54,9.25-17.91,2.76-1.57,5.85-2.46,9.02-2.59,1.27,0,2.3,1.03,2.3,2.3s-1.03,2.3-2.3,2.3l-.04-.03Z" /><line class="fmc-10" x1="1883.11" y1="2278.04" x2="1883.11" y2="2325.26" /><line class="fmc-10" x1="1830.79" y1="2278.04" x2="1830.78" y2="2324.11" /><path class="fmc-7 room" d="M2316.68,1252.06h-73.41c-11.53,0-20.88,9.35-20.88,20.88v259.81c0,11.53,9.35,20.88,20.88,20.88h73.41" id="r-80" data-name="Restrooms" data-type="amenity" tabindex="0" role="button" aria-label="Restrooms" /><text class="fmc-3" transform="translate(2272.4051 1477.4514) rotate(-180)" data-for="r-80"><tspan x="0" y="0">restrooms</tspan></text><path class="fmc-8 room" d="M991.73,1509.54h109.75v141.3c0,17.38-14.11,31.49-31.49,31.49h-78.26v-172.78h0Z" id="r-82" data-name="Meeting Room" data-type="office" tabindex="0" role="button" aria-label="Meeting Room" /><text class="fmc-4" transform="translate(1038.5741 1663.5186) rotate(-90)" data-for="r-82"><tspan x="0" y="0">Meeting</tspan><tspan x="0" y="37.26">Room</tspan></text><path class="fmc-19" d="M1921.17,2184.37l3.17-35.2c-1.7.61-3.41.97-5.11,1.22-4.02.61-8.16.24-12.06-1.1-3.78-1.34-7.79-1.58-11.57-1.22l3.17,36.29h22.41Z" /><path class="fmc-19" d="M1930.92,2136.63c-1.34,0-2.44.97-2.56,2.31l-4.14,46.28c-.12,1.34-1.22,2.31-2.56,2.31h-23.5c-1.34,0-2.44-.97-2.56-2.31l-4.02-46.28c-.12-1.34-1.22-2.31-2.56-2.31h-.12c-1.46,0-2.68,1.34-2.56,2.8l4.51,51.03c.12,1.34,1.22,2.31,2.56,2.31h33c1.34,0,2.44-.97,2.56-2.31l4.51-51.03c.24-1.46-.97-2.8-2.56-2.8Z" /><path class="fmc-19" d="M1909.97,2138.58c.97,0,1.95-.24,2.8-.73,1.46-.73,2.68-2.07,3.17-3.65.49-1.58.37-3.41-.37-4.87l-4.14-8.16c-.24-.61-.85-.97-1.46-.97s-1.22.37-1.46.97c0,0-3.41,6.58-4.14,8.16-.97,1.83-.97,3.9,0,5.72.97,2.19,3.17,3.53,5.6,3.53Z" /><path class="fmc-19" d="M955.72,690.14l3.17-35.2c-1.7.61-3.41.97-5.11,1.22-4.02.61-8.16.24-12.06-1.1-3.78-1.34-7.79-1.58-11.57-1.22l3.17,36.29h22.41Z" /><path class="fmc-19" d="M965.46,642.4c-1.34,0-2.44.97-2.56,2.31l-4.14,46.28c-.12,1.34-1.22,2.31-2.56,2.31h-23.5c-1.34,0-2.44-.97-2.56-2.31l-4.02-46.28c-.12-1.34-1.22-2.31-2.56-2.31h-.12c-1.46,0-2.68,1.34-2.56,2.8l4.51,51.03c.12,1.34,1.22,2.31,2.56,2.31h33c1.34,0,2.44-.97,2.56-2.31l4.51-51.03c.24-1.46-.97-2.8-2.56-2.8Z" /><path class="fmc-19" d="M944.52,644.35c.97,0,1.95-.24,2.8-.73,1.46-.73,2.68-2.07,3.17-3.65.49-1.58.37-3.41-.37-4.87l-4.14-8.16c-.24-.61-.85-.97-1.46-.97s-1.22.37-1.46.97c0,0-3.41,6.58-4.14,8.16-.97,1.83-.97,3.9,0,5.72.97,2.19,3.17,3.53,5.6,3.53Z" /><text class="fmc-1" transform="translate(1999.535 1860.7166)"><tspan x="0" y="0">you are here</tspan></text><text class="fmc-1" transform="translate(2002.7655 1940.9129)"><tspan x="0" y="0">vous êtes ici</tspan></text><path class="fmc-6" d="M2084.89,1905.86c-.9,0-1.63-.74-1.63-1.64,0-.09,0-.18.02-.27l1.9-11.06-8.04-7.83c-.64-.63-.66-1.66-.03-2.3.25-.26.58-.42.93-.48l11.11-1.61,4.97-10.06c.4-.81,1.38-1.14,2.18-.74.32.16.58.42.74.74h0l4.97,10.06,11.11,1.61c.89.13,1.51.96,1.38,1.85-.05.35-.22.68-.48.93l-8.04,7.83,1.9,11.06c.15.89-.44,1.73-1.33,1.88-.35.06-.72,0-1.03-.16l-9.93-5.22-9.93,5.22c-.23.12-.49.19-.76.19ZM2095.28,1871.47" /><rect class="fmc-18" x="2316.35" y="966.45" width="58.2" height="67.54" /><path class="fmc-19" d="M957.4,1943.95l3.17-35.2c-1.7.61-3.41.97-5.11,1.22-4.02.61-8.16.24-12.06-1.1-3.78-1.34-7.79-1.58-11.57-1.22l3.17,36.29h22.41Z" /><path class="fmc-19" d="M967.15,1896.21c-1.34,0-2.44.97-2.56,2.31l-4.14,46.28c-.12,1.34-1.22,2.31-2.56,2.31h-23.5c-1.34,0-2.44-.97-2.56-2.31l-4.02-46.28c-.12-1.34-1.22-2.31-2.56-2.31h-.12c-1.46,0-2.68,1.34-2.56,2.8l4.51,51.03c.12,1.34,1.22,2.31,2.56,2.31h33c1.34,0,2.44-.97,2.56-2.31l4.51-51.03c.24-1.46-.97-2.8-2.56-2.8Z" /><path class="fmc-19" d="M946.2,1898.16c.97,0,1.95-.24,2.8-.73,1.46-.73,2.68-2.07,3.17-3.65.49-1.58.37-3.41-.37-4.87l-4.14-8.16c-.24-.61-.85-.97-1.46-.97s-1.22.37-1.46.97c0,0-3.41,6.58-4.14,8.16-.97,1.83-.97,3.9,0,5.72.97,2.19,3.17,3.53,5.6,3.53Z" /><path class="fmc-11 room" d="M1486.53,907.84h160.26v229.61c0,17.03-13.83,30.86-30.86,30.86h-98.53c-17.03,0-30.86-13.83-30.86-30.86v-229.61h0Z" id="r-97" data-name="Teacher’s Area" data-type="room" tabindex="0" role="button" aria-label="Teacher’s Area" /><path class="fmc-11 room" d="M1646.79,970.82v166.63c0,17.05-13.82,30.86-30.86,30.86h-243.35c-17.05,0-30.86-13.82-30.86-30.86v-166.63h144.82" id="r-98" data-name="Room 20" data-type="room" tabindex="0" role="button" aria-label="Room 20" /><text class="fmc-2" transform="translate(1386.2108 1089.9864)" data-for="r-98"><tspan x="0" y="0">20</tspan></text><line class="fmc-12" x1="1486.53" y1="970.82" x2="1486.53" y2="1168.31" /><text class="fmc-5" transform="translate(1494.5701 1033.9956)" data-for="r-97"><tspan x="0" y="0">Teacher’s</tspan><tspan x="34.54" y="43.51">Area</tspan></text><path class="fmc-11 room" d="M1646.55,907.84h160.26v99.37c0,17.03-13.83,30.86-30.86,30.86h-98.53c-17.03,0-30.86-13.83-30.86-30.86v-99.37h0Z" id="r-102" data-name="Teacher’s Area" data-type="room" tabindex="0" role="button" aria-label="Teacher’s Area" /><text class="fmc-5" transform="translate(1655.3989 963.0594)" data-for="r-102"><tspan x="0" y="0">Teacher’s</tspan><tspan x="34.54" y="43.51">Area</tspan></text><rect class="fmc-15" x="2267.06" y="972.66" width="53.46" height="59.85" /><rect class="fmc-15" x="1814.58" y="2324.06" width="88" height="51.74" /><path class="fmc-17" d="M1819.86,2402.48v-34.07c0-1.73,1.4-3.14,3.14-3.14h7.66c1.73,0,3.14,1.41,3.14,3.14s-1.4,3.14-3.14,3.14h-4.52v27.79h61.64v-27.79h-4.53c-1.74,0-3.14-1.41-3.14-3.14s1.4-3.14,3.14-3.14h7.67c1.74,0,3.14,1.41,3.14,3.14v34.07c0,1.74-1.4,3.14-3.14,3.14h-67.92c-1.74,0-3.14-1.4-3.14-3.14Z" /><path class="fmc-17" d="M1856.96,2383.33c-.91,0-1.77-.39-2.37-1.07l-15-17.16c-1.14-1.3-1.01-3.29.3-4.43,1.3-1.14,3.29-1.01,4.43.3l9.5,10.86v-33.25c0-1.73,1.4-3.14,3.14-3.14s3.14,1.41,3.14,3.14v33.25l9.5-10.86c1.14-1.31,3.12-1.44,4.43-.3.71.62,1.07,1.49,1.07,2.37,0,.73-.26,1.47-.77,2.07l-15.01,17.16c-.59.68-1.45,1.08-2.36,1.08Z" /><path class="fmc-17" d="M2396,1039.47h-34.07c-1.73,0-3.14-1.4-3.14-3.14v-7.66c0-1.73,1.41-3.14,3.14-3.14,1.73,0,3.14,1.4,3.14,3.14v4.52s27.79,0,27.79,0v-61.64s-27.79,0-27.79,0v4.53c0,1.74-1.41,3.14-3.14,3.14-1.73,0-3.14-1.4-3.14-3.14v-7.67c0-1.74,1.41-3.14,3.14-3.14h34.07c1.74,0,3.14,1.4,3.14,3.14v67.92c0,1.74-1.4,3.14-3.14,3.14Z" /><path class="fmc-17" d="M2376.85,1002.37c0,.91-.39,1.77-1.07,2.37l-17.16,15c-1.3,1.14-3.29,1.01-4.43-.3-1.14-1.3-1.01-3.29.3-4.43l10.86-9.5h-33.25c-1.73,0-3.14-1.4-3.14-3.14s1.41-3.14,3.14-3.14h33.25s-10.86-9.5-10.86-9.5c-1.31-1.14-1.44-3.12-.3-4.43.62-.71,1.49-1.07,2.37-1.07.73,0,1.47.26,2.07.77l17.16,15.01c.68.59,1.08,1.45,1.08,2.36Z" /><path class="fmc-17" d="M2396,1927.39h-34.07c-1.73,0-3.14-1.4-3.14-3.14v-7.66c0-1.73,1.41-3.14,3.14-3.14,1.73,0,3.14,1.4,3.14,3.14v4.52s27.79,0,27.79,0v-61.64s-27.79,0-27.79,0v4.53c0,1.74-1.41,3.14-3.14,3.14-1.73,0-3.14-1.4-3.14-3.14v-7.67c0-1.74,1.41-3.14,3.14-3.14h34.07c1.74,0,3.14,1.4,3.14,3.14v67.92c0,1.74-1.4,3.14-3.14,3.14Z" /><path class="fmc-17" d="M2376.85,1890.29c0,.91-.39,1.77-1.07,2.37l-17.16,15c-1.3,1.14-3.29,1.01-4.43-.3-1.14-1.3-1.01-3.29.3-4.43l10.86-9.5h-33.25c-1.73,0-3.14-1.4-3.14-3.14s1.41-3.14,3.14-3.14h33.25s-10.86-9.5-10.86-9.5c-1.31-1.14-1.44-3.12-.3-4.43.62-.71,1.49-1.07,2.37-1.07.73,0,1.47.26,2.07.77l17.16,15.01c.68.59,1.08,1.45,1.08,2.36Z" /><path class="fmc-16" d="M705.07,706.19h34.07c1.73,0,3.14-1.4,3.14-3.14v-7.66c0-1.73-1.41-3.14-3.14-3.14s-3.14,1.4-3.14,3.14v4.52s-27.79,0-27.79,0v-61.64s27.79,0,27.79,0v4.53c0,1.74,1.41,3.14,3.14,3.14,1.73,0,3.14-1.4,3.14-3.14v-7.67c0-1.74-1.41-3.14-3.14-3.14h-34.07c-1.74,0-3.14,1.4-3.14,3.14v67.92c0,1.74,1.4,3.14,3.14,3.14Z" /><path class="fmc-16" d="M724.23,669.09c0,.91.39,1.77,1.07,2.37l17.16,15c1.3,1.14,3.29,1.01,4.43-.3,1.14-1.3,1.01-3.29-.3-4.43l-10.86-9.5h33.25c1.73,0,3.14-1.4,3.14-3.14s-1.41-3.14-3.14-3.14h-33.25s10.86-9.5,10.86-9.5c1.31-1.14,1.44-3.12.3-4.43-.62-.71-1.49-1.07-2.37-1.07-.73,0-1.47.26-2.07.77l-17.16,15.01c-.68.59-1.08,1.45-1.08,2.36Z" /><g id="fm-poi"><rect class="poi" x="1872.3318387228476" y="2106.2000000000003" width="75.17859047692355" height="100.57000000000244" rx="10" data-name="Water fountain" data-type="fountain" tabindex="0" role="button" aria-label="Water fountain" /><rect class="poi" x="906.8718387228472" y="611.97" width="75.17859047692389" height="100.56999999999982" rx="10" data-name="Water fountain" data-type="fountain" tabindex="0" role="button" aria-label="Water fountain" /><rect class="poi" x="908.5618387228463" y="1865.78" width="75.17859047692468" height="100.57000000000085" rx="10" data-name="Water fountain" data-type="fountain" tabindex="0" role="button" aria-label="Water fountain" /><rect class="poi" x="2253.06" y="951.2699999999999" width="160.07999999999993" height="102.20000000000039" rx="10" data-name="Entrance" data-type="entrance" tabindex="0" role="button" aria-label="Entrance" /><rect class="poi" x="2314.9600000000005" y="1839.1899999999996" width="98.17999999999938" height="102.2000000000005" rx="10" data-name="Entrance" data-type="entrance" tabindex="0" role="button" aria-label="Entrance" /><rect class="poi" x="1800.58" y="2310.06" width="116.0" height="109.5600000000004" rx="10" data-name="Main entrance" data-type="entrance" tabindex="0" role="button" aria-label="Main entrance" /><rect class="poi" x="687.9299999999995" y="617.9900000000001" width="98.19000000000051" height="102.2000000000005" rx="10" data-name="Emergency exit" data-type="exit" tabindex="0" role="button" aria-label="Emergency exit" /><rect class="poi" x="2062.648565481351" y="1855.7000753172988" width="65.86866075053604" height="64.15992468270247" rx="10" data-name="You are here" data-type="here" tabindex="0" role="button" aria-label="You are here" /><circle class="fm-pulse" cx="2095.582895856619" cy="1887.7800376586501" r="26" /></g><g id="fm-ov" /></svg>
+<div class="fm-bar">
+  <div class="fm-sw"><input id="fm-q" type="search" placeholder="Search rooms…" aria-label="Search rooms" autocomplete="off"><ul class="fm-res" hidden></ul></div>
+  <div class="fm-chips" role="group" aria-label="Filter map">
+    <button class="fm-chip" data-f="all" aria-pressed="true">All</button>
+    <button class="fm-chip" data-f="room" aria-pressed="false">Rooms</button>
+    <button class="fm-chip" data-f="lab" aria-pressed="false">Labs</button>
+    <button class="fm-chip" data-f="office" aria-pressed="false">Offices</button>
+    <button class="fm-chip" data-f="amen" aria-pressed="false">Amenities</button>
+  </div>
+</div>
+<div class="fm-zoom">
+  <button data-z="in" aria-label="Zoom in">+</button>
+  <button data-z="out" aria-label="Zoom out">−</button>
+  <button data-z="reset" aria-label="Reset view">⟲</button>
+</div>
+<div class="fm-tip"></div>
+<div class="fm-hint">Hold Ctrl / ⌘ and scroll to zoom</div>
+<div class="fm-panel" aria-live="polite"></div>
+</div>
+<script>
+(()=>{
+const R=document.getElementById('floormap'),S=R.querySelector('.fm-svg'),OV=S.querySelector('#fm-ov');
+
+/* ---- EDIT ME: details shown in the info panel, keyed by room name ----
+   e.g. "Lab A":{description:"Wet lab",capacity:"24",contact:"ext. 123"} */
+const ROOM_INFO={};
+const WHEEL_NEEDS_MODIFIER=true; // false = plain scroll wheel always zooms
+
+const LABEL={room:'Room',lab:'Lab',office:'Office / meeting',special:'Room',common:'Common area',amenity:'Amenity',fountain:'Water fountain',entrance:'Entrance',exit:'Emergency exit',here:'You are here'};
+const FT={room:['room','special'],lab:['lab'],office:['office'],amen:['amenity','common']};
+const base={x:340,y:440,w:2155,h:2060};
+let vb={...base};
+const $=(s)=>R.querySelector(s);
+const rooms=[...S.querySelectorAll('.room')];
+const lbl=new Map(rooms.map(r=>[r,[...S.querySelectorAll('[data-for="'+r.id+'"]')]]));
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+
+/* ---- view (pan / zoom via viewBox) ---- */
+function draw(){
+  vb.w=clamp(vb.w,base.w/8,base.w);vb.h=vb.w*base.h/base.w;
+  vb.x=clamp(vb.x,base.x,base.x+base.w-vb.w);vb.y=clamp(vb.y,base.y,base.y+base.h-vb.h);
+  S.setAttribute('viewBox',vb.x+' '+vb.y+' '+vb.w+' '+vb.h);
+  R.classList.toggle('zoomed',vb.w<base.w*.98);
+}
+function metrics(){const r=S.getBoundingClientRect(),s=Math.max(vb.w/r.width,vb.h/r.height);return{r,s,ox:(r.width-vb.w/s)/2,oy:(r.height-vb.h/s)/2};}
+function toSvg(cx,cy){const m=metrics();return{x:vb.x+(cx-m.r.left-m.ox)*m.s,y:vb.y+(cy-m.r.top-m.oy)*m.s};}
+function zoomAt(cx,cy,f){const p=toSvg(cx,cy),w=clamp(vb.w*f,base.w/8,base.w),k=w/vb.w;vb={x:p.x-(p.x-vb.x)*k,y:p.y-(p.y-vb.y)*k,w,h:vb.h*k};draw();}
+let raf;
+function go(t){cancelAnimationFrame(raf);const a={...vb},t0=performance.now();
+  (function f(n){const k=Math.min(1,(n-t0)/350),e=1-Math.pow(1-k,3);
+    for(const q of['x','y','w'])vb[q]=a[q]+(t[q]-a[q])*e;
+    draw();if(k<1)raf=requestAnimationFrame(f);})(t0);}
+function zoomTo(el){const b=el.getBBox(),w=clamp(Math.max(b.width*2.2,b.height*2.2*base.w/base.h,base.w/5),base.w/8,base.w);
+  go({x:b.x+b.width/2-w/2,y:b.y+b.height/2-w*base.h/base.w/2,w});}
+
+/* ---- hover / select overlays ---- */
+function ghost(el,cls){const g=el.cloneNode(false);
+  for(const a of[...g.attributes])if(a.name!=='d'&&!/^(x|y|width|height|rx|ry|cx|cy|r|points|x1|y1|x2|y2|transform)$/.test(a.name))g.removeAttribute(a.name);
+  g.setAttribute('class',cls);return g;}
+let hv,sl;
+function hover(el){if(hv)hv.remove();hv=el?ghost(el,'fm-hv'):null;if(hv)OV.appendChild(hv);}
+const tip=$('.fm-tip'),P=$('.fm-panel');
+function select(el){
+  if(sl)sl.remove();sl=null;P.className='fm-panel';P.replaceChildren();
+  if(!el)return;
+  sl=ghost(el,'fm-sel');OV.prepend(sl);
+  const name=el.dataset.name,info=ROOM_INFO[name]||{},mk=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;};
+  const x=mk('button','fm-x','×');x.setAttribute('aria-label','Close');x.onclick=()=>select(null);
+  P.append(x,mk('h3','',name),mk('span','fm-badge',LABEL[el.dataset.type]||''));
+  const{description,...rest}=info;
+  if(description)P.append(mk('p','',description));
+  const ks=Object.keys(rest);
+  if(ks.length){const dl=mk('dl');ks.forEach(k=>dl.append(mk('dt','',k),mk('dd','',rest[k])));P.append(dl);}
+  if(el.classList.contains('room')){const g=mk('button','fm-go','Zoom to this room');g.onclick=()=>zoomTo(el);P.append(g);}
+  P.classList.add('on');
+}
+
+/* ---- filter + search ---- */
+let q='',f='all';
+function apply(){
+  R.classList.toggle('am',f==='amen');
+  rooms.forEach(r=>{const ok=(f==='all'||FT[f].includes(r.dataset.type))&&(!q||r.dataset.name.toLowerCase().includes(q));
+    r.classList.toggle('dim',!ok);lbl.get(r).forEach(t=>t.classList.toggle('dim',!ok));});
+}
+R.querySelectorAll('.fm-chip').forEach(c=>c.onclick=()=>{f=c.dataset.f;R.querySelectorAll('.fm-chip').forEach(x=>x.setAttribute('aria-pressed',x===c));apply();});
+const qi=$('#fm-q'),res=$('.fm-res');
+function pick(r){res.hidden=true;select(r);zoomTo(r);}
+qi.addEventListener('input',()=>{
+  q=qi.value.trim().toLowerCase();apply();res.replaceChildren();
+  const m=q?rooms.filter(r=>r.dataset.name.toLowerCase().includes(q)).slice(0,6):[];
+  m.forEach(r=>{const li=document.createElement('li');li.textContent=r.dataset.name;li.onclick=()=>pick(r);res.append(li);});
+  res.hidden=!m.length;
+});
+qi.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&res.firstChild)res.firstChild.click();
+  if(e.key==='Escape'){qi.value='';qi.dispatchEvent(new Event('input'));}
+});
+
+/* ---- zoom buttons ---- */
+R.querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{
+  const z=b.dataset.z;
+  if(z==='reset')go({...base});
+  else{const r=S.getBoundingClientRect();zoomAt(r.left+r.width/2,r.top+r.height/2,z==='in'?.6:1/.6);}
+});
+
+/* ---- pointer: drag-pan, pinch-zoom, click ---- */
+const ptr=new Map();let drag=null,moved=false,pd=0;
+const pdist=()=>{const[a,b]=[...ptr.values()];return Math.hypot(a[0]-b[0],a[1]-b[1]);};
+S.addEventListener('pointerdown',e=>{
+  ptr.set(e.pointerId,[e.clientX,e.clientY]);
+  if(ptr.size===1){drag={x:e.clientX,y:e.clientY,vx:vb.x,vy:vb.y};moved=false;}
+  else{drag=null;pd=pdist();moved=true;}
+});
+addEventListener('pointermove',e=>{
+  if(!ptr.has(e.pointerId))return;
+  ptr.set(e.pointerId,[e.clientX,e.clientY]);
+  if(ptr.size===2){const d=pdist(),[a,b]=[...ptr.values()];if(pd)zoomAt((a[0]+b[0])/2,(a[1]+b[1])/2,pd/d);pd=d;}
+  else if(drag){
+    const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
+    if(!moved&&Math.hypot(dx,dy)>5)moved=true;
+    if(moved){const s=metrics().s;vb.x=drag.vx-dx*s;vb.y=drag.vy-dy*s;draw();}
+  }
+});
+const up=e=>{ptr.delete(e.pointerId);if(ptr.size<2)pd=0;if(!ptr.size)drag=null;};
+addEventListener('pointerup',up);addEventListener('pointercancel',up);
+S.addEventListener('click',e=>{
+  if(moved){moved=false;return;}
+  select(e.target.closest('.room,.poi'));
+});
+S.addEventListener('dblclick',e=>zoomAt(e.clientX,e.clientY,.5));
+const hint=$('.fm-hint');let ht;
+S.addEventListener('wheel',e=>{
+  if(WHEEL_NEEDS_MODIFIER&&!(e.ctrlKey||e.metaKey)&&!R.classList.contains('zoomed')){
+    hint.classList.add('on');clearTimeout(ht);ht=setTimeout(()=>hint.classList.remove('on'),1200);return;}
+  e.preventDefault();zoomAt(e.clientX,e.clientY,Math.exp(e.deltaY*.0015));
+},{passive:false});
+
+/* ---- hover tooltip + keyboard ---- */
+S.addEventListener('mouseover',e=>{const t=e.target.closest('.room,.poi');hover(t);tip.textContent=t?t.dataset.name:'';tip.classList.toggle('on',!!t);});
+S.addEventListener('mousemove',e=>{const r=R.getBoundingClientRect();tip.style.left=(e.clientX-r.left+14)+'px';tip.style.top=(e.clientY-r.top+14)+'px';});
+S.addEventListener('mouseleave',()=>{hover(null);tip.classList.remove('on');});
+S.addEventListener('focusin',e=>hover(e.target.closest('.room,.poi')));
+S.addEventListener('focusout',()=>hover(null));
+R.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){select(null);hover(null);return;}
+  const t=e.target.closest&&e.target.closest('.room,.poi');
+  if(t&&(e.key==='Enter'||e.key===' ')){e.preventDefault();select(t);}
+});
+
+draw();apply();
+})();
+</script>
+</body>
+</html>
